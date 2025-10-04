@@ -18,7 +18,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-fade-in">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div
@@ -71,7 +71,7 @@ export default function Home() {
       {/* Features */}
       <section className="container py-16">
         <div className="grid gap-6 md:grid-cols-3">
-          <Card className="border-2 hover:border-primary/50 transition-colors">
+          <Card className="border-2 hover:border-primary/50 transition-all hover:shadow-lg hover-scale animate-fade-in">
             <CardHeader>
               <Sparkles className="h-10 w-10 text-primary mb-2" />
               <CardTitle>AI-Generated Content</CardTitle>
@@ -81,7 +81,7 @@ export default function Home() {
             </CardHeader>
           </Card>
 
-          <Card className="border-2 hover:border-primary/50 transition-colors">
+          <Card className="border-2 hover:border-primary/50 transition-all hover:shadow-lg hover-scale animate-fade-in" style={{ animationDelay: "0.1s" }}>
             <CardHeader>
               <TrendingUp className="h-10 w-10 text-primary mb-2" />
               <CardTitle>Track Your Progress</CardTitle>
@@ -91,7 +91,7 @@ export default function Home() {
             </CardHeader>
           </Card>
 
-          <Card className="border-2 hover:border-primary/50 transition-colors">
+          <Card className="border-2 hover:border-primary/50 transition-all hover:shadow-lg hover-scale animate-fade-in" style={{ animationDelay: "0.2s" }}>
             <CardHeader>
               <Award className="h-10 w-10 text-primary mb-2" />
               <CardTitle>Interactive Quizzes</CardTitle>
@@ -114,7 +114,7 @@ export default function Home() {
           {popularTopics.map((topic) => (
             <Card
               key={topic.title}
-              className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"
+              className="cursor-pointer transition-all hover:shadow-xl hover:scale-105 hover:border-primary/50 animate-fade-in"
               onClick={() => handleCreateCourse(topic.title)}
             >
               <CardHeader>

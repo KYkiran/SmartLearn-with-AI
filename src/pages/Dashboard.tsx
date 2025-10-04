@@ -51,7 +51,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-fade-in">
       <div className="container py-8 space-y-8">
         {/* Header */}
         <div>
@@ -61,7 +61,7 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-2">
+          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -78,7 +78,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-2">
+          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in" style={{ animationDelay: "0.1s" }}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -93,7 +93,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-2">
+          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in" style={{ animationDelay: "0.2s" }}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -108,7 +108,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-2">
+          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in" style={{ animationDelay: "0.3s" }}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
