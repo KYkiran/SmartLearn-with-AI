@@ -40,7 +40,7 @@ export function Navigation() {
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2 font-semibold text-lg hover-scale">
             <Sparkles className="h-6 w-6 text-primary animate-pulse-glow" />
-            LearnAI
+            SmartLearn
           </Link>
 
           {user && (
