@@ -1,326 +1,528 @@
+// frontend/src/pages/Dashboard.tsx
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Area,
-  AreaChart
-} from "recharts";
-import { generateMockDailyActivities, calculateStreak, popularTopics } from "@/utils/mockData";
-import { DailyActivity } from "@/types/course";
-import { Clock, Flame, Award, Target, TrendingUp, BookOpen } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { Progress } from "../components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { 
+  BookOpen, 
+  Trophy, 
+  Clock, 
+  TrendingUp, 
+  Star,
+  Users,
+  Target,
+  Calendar,
+  PlusCircle,
+  Sparkles,
+  CheckCircle,
+  Play,
+  Award,
+  BarChart3
+} from "lucide-react";
+import { userService } from "../services/userService";
+import { courseService } from "../services/courseService";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from "sonner";
 
-export default function Dashboard() {
-  const [dailyActivities, setDailyActivities] = useState<DailyActivity[]>([]);
+interface DashboardStats {
+  totalCoursesEnrolled: number;
+  totalCoursesCompleted: number;
+  totalTimeSpent: number;
+  totalQuizzesTaken: number;
+  averageQuizScore: number;
+  streakDays: number;
+  lastStudyDate: string;
+}
+
+interface CourseProgress {
+  course: {
+    _id: string;
+    title: string;
+    subject: string;
+    level: string;
+    thumbnail?: string;
+    totalDuration: number;
+    creator: {
+      name: string;
+      avatar?: string;
+    };
+  };
+  status: string;
+  progressPercentage: number;
+  enrolledAt: string;
+  lastAccessedAt: string;
+  totalTimeSpent: number;
+}
+
+interface Achievement {
+  type: string;
+  earnedAt: string;
+}
+
+export function DashboardPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [enrolledCourses, setEnrolledCourses] = useState<CourseProgress[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
-    setDailyActivities(generateMockDailyActivities());
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
-  const totalMinutes = dailyActivities.reduce((acc, day) => acc + day.minutes, 0);
-  const totalHours = Math.floor(totalMinutes / 60);
-  const streak = calculateStreak(dailyActivities);
-  const totalQuizzes = dailyActivities.reduce((acc, day) => acc + day.quizzesTaken, 0);
-  const avgMinutesPerDay = Math.round(totalMinutes / dailyActivities.length);
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all dashboard data in parallel
+      const [
+        progressResponse,
+        achievementsResponse,
+        leaderboardResponse,
+        enrolledResponse
+      ] = await Promise.all([
+        userService.getProgress(),
+        userService.getAchievements(),
+        userService.getLeaderboard(10),
+        courseService.getEnrolledCourses()
+      ]);
 
-  // Last 7 days for mini charts
-  const last7Days = dailyActivities.slice(-7);
-  
-  // Weekly data grouped
-  const weeklyData = [];
-  for (let i = 0; i < dailyActivities.length; i += 7) {
-    const week = dailyActivities.slice(i, i + 7);
-    const weekMinutes = week.reduce((acc, day) => acc + day.minutes, 0);
-    weeklyData.push({
-      week: `Week ${Math.floor(i / 7) + 1}`,
-      minutes: weekMinutes,
-      hours: Math.round(weekMinutes / 60),
-    });
+      if (progressResponse.success && progressResponse.data?.progress) {
+        setStats(progressResponse.data.progress.overallStats);
+      }
+
+      if (achievementsResponse.success && achievementsResponse.data?.achievements) {
+        setAchievements(achievementsResponse.data.achievements);
+      }
+
+      if (leaderboardResponse.success && leaderboardResponse.data?.leaderboard) {
+        setLeaderboard(leaderboardResponse.data.leaderboard);
+      }
+
+      if (enrolledResponse.success && enrolledResponse.data?.courses) {
+        setEnrolledCourses(enrolledResponse.data.courses);
+      }
+
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAchievementIcon = (type: string) => {
+    switch (type) {
+      case 'first-course':
+        return <BookOpen className="h-4 w-4" />;
+      case 'course-completed':
+        return <Trophy className="h-4 w-4" />;
+      case 'quiz-master':
+        return <Star className="h-4 w-4" />;
+      case 'streak-week':
+        return <Target className="h-4 w-4" />;
+      default:
+        return <Award className="h-4 w-4" />;
+    }
+  };
+
+  const getAchievementTitle = (type: string) => {
+    switch (type) {
+      case 'first-course':
+        return 'First Course';
+      case 'course-completed':
+        return 'Course Completed';
+      case 'quiz-master':
+        return 'Quiz Master';
+      case 'streak-week':
+        return 'Week Streak';
+      default:
+        return 'Achievement';
+    }
+  };
+
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${remainingMinutes}m`;
+    }
+    return `${remainingMinutes}m`;
+  };
+
+  const getProgressColor = (percentage: number) => {
+    if (percentage >= 80) return 'bg-green-500';
+    if (percentage >= 50) return 'bg-yellow-500';
+    return 'bg-blue-500';
+  };
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <p className="text-muted-foreground mb-4">You must be logged in to view the dashboard.</p>
+          <Button onClick={() => navigate("/login")}>Login</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 h-96 bg-gray-200 rounded"></div>
+            <div className="h-96 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background animate-fade-in">
-      <div className="container py-8 space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Learning Dashboard</h1>
-          <p className="text-muted-foreground text-lg">Track your progress and stay motivated</p>
+    <div className="container mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome back, {user.name}! 👋
+            </h1>
+            <p className="text-muted-foreground">
+              Continue your learning journey
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate("/courses")}>
+              <BookOpen className="h-4 w-4 mr-2" />
+              Browse Courses
+            </Button>
+            <Button variant="gradient" onClick={() => navigate("/create-course")}>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Create Course
+            </Button>
+          </div>
         </div>
+      </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Learning Time
-                </CardTitle>
-                <Clock className="h-4 w-4 text-primary" />
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Courses Enrolled</p>
+                <p className="text-2xl font-bold">{stats?.totalCoursesEnrolled || 0}</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">{totalHours}h</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {totalMinutes % 60}m · Avg {avgMinutesPerDay}m/day
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in" style={{ animationDelay: "0.1s" }}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Current Streak
-                </CardTitle>
-                <Flame className="h-4 w-4 text-orange-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-orange-500">{streak}</div>
-              <p className="text-xs text-muted-foreground mt-1">days in a row 🔥</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in" style={{ animationDelay: "0.2s" }}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Quizzes Completed
-                </CardTitle>
-                <Award className="h-4 w-4 text-success" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-success">{totalQuizzes}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total assessments</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 hover:shadow-lg transition-all hover-scale animate-scale-in" style={{ animationDelay: "0.3s" }}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  This Week
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                {Math.round(last7Days.reduce((acc, day) => acc + day.minutes, 0) / 60)}h
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Last 7 days</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="activity" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-            <TabsTrigger value="progress">Progress</TabsTrigger>
-            <TabsTrigger value="courses">Courses</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="activity" className="space-y-6">
-            {/* Daily Activity Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Daily Activity</CardTitle>
-                <CardDescription>Your learning time over the last 30 days</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={dailyActivities}>
-                    <defs>
-                      <linearGradient id="colorMinutes" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="date" 
-                      className="text-xs"
-                      tickFormatter={(date) => new Date(date).getDate().toString()}
-                    />
-                    <YAxis className="text-xs" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      labelFormatter={(date) => new Date(date).toLocaleDateString()}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="minutes"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorMinutes)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Contribution Graph */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Learning Heatmap</CardTitle>
-                <CardDescription>Your daily learning activity</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-10 gap-1">
-                  {dailyActivities.map((day, idx) => {
-                    const intensity = day.minutes === 0 ? 0 : Math.min(Math.floor(day.minutes / 30) + 1, 4);
-                    return (
-                      <div
-                        key={idx}
-                        className="aspect-square rounded-sm"
-                        style={{
-                          backgroundColor:
-                            intensity === 0
-                              ? "hsl(var(--muted))"
-                              : `hsl(var(--primary) / ${intensity * 0.25})`,
-                        }}
-                        title={`${day.date}: ${day.minutes} minutes`}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="flex items-center justify-end gap-2 mt-4 text-xs text-muted-foreground">
-                  <span>Less</span>
-                  <div className="h-3 w-3 rounded-sm bg-muted" />
-                  <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: "hsl(var(--primary) / 0.25)" }} />
-                  <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: "hsl(var(--primary) / 0.5)" }} />
-                  <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: "hsl(var(--primary) / 0.75)" }} />
-                  <div className="h-3 w-3 rounded-sm bg-primary" />
-                  <span>More</span>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="progress" className="space-y-6">
-            {/* Weekly Progress */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Weekly Progress</CardTitle>
-                <CardDescription>Hours spent learning each week</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={weeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="week" className="text-xs" />
-                    <YAxis className="text-xs" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Goals Section */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Weekly Goal
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">10 hours target</span>
-                      <span className="font-medium">
-                        {Math.round(last7Days.reduce((acc, day) => acc + day.minutes, 0) / 60)}/10h
-                      </span>
-                    </div>
-                    <Progress
-                      value={
-                        (last7Days.reduce((acc, day) => acc + day.minutes, 0) / 60 / 10) * 100
-                      }
-                      className="h-2"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Keep going! You're {Math.round((last7Days.reduce((acc, day) => acc + day.minutes, 0) / 60 / 10) * 100)}% of the way there.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Flame className="h-5 w-5 text-orange-500" />
-                    Streak Goal
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">30 days target</span>
-                      <span className="font-medium">{streak}/30 days</span>
-                    </div>
-                    <Progress value={(streak / 30) * 100} className="h-2" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Maintain your streak by learning a little bit every day!
-                  </p>
-                </CardContent>
-              </Card>
+              <BookOpen className="h-8 w-8 text-blue-500" />
             </div>
-          </TabsContent>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="courses" className="space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Courses Completed</p>
+                <p className="text-2xl font-bold">{stats?.totalCoursesCompleted || 0}</p>
+              </div>
+              <Trophy className="h-8 w-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Study Time</p>
+                <p className="text-2xl font-bold">{formatTime(stats?.totalTimeSpent || 0)}</p>
+              </div>
+              <Clock className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Avg Quiz Score</p>
+                <p className="text-2xl font-bold">{Math.round(stats?.averageQuizScore || 0)}%</p>
+              </div>
+              <Star className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Tabs defaultValue="courses" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="courses">My Courses</TabsTrigger>
+          <TabsTrigger value="achievements">Achievements</TabsTrigger>
+          <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        {/* My Courses Tab */}
+        <TabsContent value="courses" className="space-y-6">
+          {enrolledCourses.length === 0 ? (
             <Card>
-              <CardHeader>
-                <CardTitle>Start a New Course</CardTitle>
-                <CardDescription>Choose a topic to begin learning</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {popularTopics.map((topic) => (
-                    <button
-                      key={topic.title}
-                      onClick={() => navigate(`/course/${encodeURIComponent(topic.title)}`)}
-                      className="flex items-start gap-4 p-4 rounded-lg border border-border hover:border-primary hover:bg-accent transition-all text-left"
-                    >
-                      <div className="text-3xl">{topic.icon}</div>
+              <CardContent className="text-center py-12">
+                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Courses Yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start your learning journey by exploring our course catalog
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={() => navigate("/courses")}>
+                    Browse Courses
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate("/create-course")}>
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Create Course
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6">
+              {enrolledCourses.map((courseProgress) => (
+                <Card key={courseProgress.course._id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium mb-1">{topic.title}</h4>
-                        <p className="text-sm text-muted-foreground">{topic.description}</p>
+                        <div className="flex items-start gap-4">
+                          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <BookOpen className="h-8 w-8 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg mb-1">
+                              {courseProgress.course.title}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-2">
+                              by {courseProgress.course.creator.name}
+                            </p>
+                            <div className="flex gap-2 mb-3">
+                              <Badge variant="outline">{courseProgress.course.subject}</Badge>
+                              <Badge variant="secondary">{courseProgress.course.level}</Badge>
+                              <Badge 
+                                variant={courseProgress.status === 'completed' ? 'default' : 'outline'}
+                              >
+                                {courseProgress.status}
+                              </Badge>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span>Progress</span>
+                                <span>{Math.round(courseProgress.progressPercentage)}%</span>
+                              </div>
+                              <Progress 
+                                value={courseProgress.progressPercentage} 
+                                className="h-2"
+                              />
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>
+                                  Time spent: {formatTime(courseProgress.totalTimeSpent)}
+                                </span>
+                                <span>
+                                  Last accessed: {new Date(courseProgress.lastAccessedAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline"
+                          onClick={() => navigate(`/courses/${courseProgress.course._id}`)}
+                        >
+                          {courseProgress.status === 'completed' ? 'Review' : 'Continue'}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Achievements Tab */}
+        <TabsContent value="achievements">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {achievements.length === 0 ? (
+              <div className="col-span-full">
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Award className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Achievements Yet</h3>
+                    <p className="text-muted-foreground">
+                      Complete courses and take quizzes to earn achievements
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              achievements.map((achievement, index) => (
+                <Card key={index} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6 text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      {getAchievementIcon(achievement.type)}
+                    </div>
+                    <h3 className="font-semibold mb-2">
+                      {getAchievementTitle(achievement.type)}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Earned on {new Date(achievement.earnedAt).toLocaleDateString()}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Leaderboard Tab */}
+        <TabsContent value="leaderboard">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                Top Learners
+              </CardTitle>
+              <CardDescription>
+                See how you rank among other learners
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {leaderboard.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No leaderboard data available</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {leaderboard.map((learner, index) => (
+                    <div key={learner.id} className="flex items-center gap-4 p-4 rounded-lg border">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${
+                        index === 0 ? 'bg-yellow-500' : 
+                        index === 1 ? 'bg-gray-400' : 
+                        index === 2 ? 'bg-amber-600' : 'bg-muted'
+                      }`}>
+                        #{index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{learner.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {learner.coursesCompleted} courses • {formatTime(learner.totalTimeSpent)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">{learner.points || 0} pts</div>
+                      </div>
+                    </div>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Learning Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span>Courses Completed</span>
+                    <span className="font-semibold">
+                      {stats?.totalCoursesCompleted || 0} / {stats?.totalCoursesEnrolled || 0}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={stats?.totalCoursesEnrolled ? (stats.totalCoursesCompleted / stats.totalCoursesEnrolled) * 100 : 0}
+                  />
+                  
+                  <div className="flex justify-between items-center">
+                    <span>Average Quiz Score</span>
+                    <span className="font-semibold">{Math.round(stats?.averageQuizScore || 0)}%</span>
+                  </div>
+                  <Progress value={stats?.averageQuizScore || 0} />
+                  
+                  <div className="flex justify-between items-center">
+                    <span>Study Streak</span>
+                    <span className="font-semibold">{stats?.streakDays || 0} days</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Study Habits
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span>Total Study Time</span>
+                      <span className="font-semibold">{formatTime(stats?.totalTimeSpent || 0)}</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Average: {stats?.totalCoursesEnrolled ? formatTime(Math.round((stats?.totalTimeSpent || 0) / stats.totalCoursesEnrolled)) : '0m'} per course
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span>Quizzes Taken</span>
+                      <span className="font-semibold">{stats?.totalQuizzesTaken || 0}</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span>Last Study Session</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {stats?.lastStudyDate ? new Date(stats.lastStudyDate).toLocaleDateString() : 'No recent activity'}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

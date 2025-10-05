@@ -1,7 +1,18 @@
+// frontend/src/components/Navigation.tsx
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./ThemeToggle";
-import { Home, LayoutDashboard, Sparkles, LogOut, User } from "lucide-react";
+import { 
+  Home, 
+  LayoutDashboard, 
+  Sparkles, 
+  LogOut, 
+  User, 
+  BookOpen, 
+  PlusCircle,
+  Trophy,
+  Settings
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
@@ -12,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Badge } from "./ui/badge";
 import { toast } from "sonner";
 
 export function Navigation() {
@@ -34,6 +46,12 @@ export function Navigation() {
       .slice(0, 2);
   };
 
+  const getRoleBadgeColor = (role: string) => {
+    return role === 'admin' ? 'destructive' : 'default';
+  };
+
+  const isActivePath = (path: string) => location.pathname === path;
+
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 animate-slide-down">
       <div className="container flex h-16 items-center justify-between">
@@ -46,7 +64,7 @@ export function Navigation() {
           {user && (
             <div className="hidden md:flex items-center gap-2">
               <Button
-                variant={location.pathname === "/" ? "default" : "ghost"}
+                variant={isActivePath("/") ? "default" : "ghost"}
                 size="sm"
                 asChild
                 className="transition-all"
@@ -56,8 +74,21 @@ export function Navigation() {
                   Home
                 </Link>
               </Button>
+              
               <Button
-                variant={location.pathname === "/dashboard" ? "default" : "ghost"}
+                variant={isActivePath("/courses") ? "default" : "ghost"}
+                size="sm"
+                asChild
+                className="transition-all"
+              >
+                <Link to="/courses">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Courses
+                </Link>
+              </Button>
+
+              <Button
+                variant={isActivePath("/dashboard") ? "default" : "ghost"}
                 size="sm"
                 asChild
                 className="transition-all"
@@ -65,6 +96,18 @@ export function Navigation() {
                 <Link to="/dashboard">
                   <LayoutDashboard className="h-4 w-4 mr-2" />
                   Dashboard
+                </Link>
+              </Button>
+
+              <Button
+                variant={isActivePath("/leaderboard") ? "default" : "ghost"}
+                size="sm"
+                asChild
+                className="transition-all"
+              >
+                <Link to="/leaderboard">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Leaderboard
                 </Link>
               </Button>
             </div>
@@ -75,42 +118,97 @@ export function Navigation() {
           <ThemeToggle />
           
           {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full hover-scale">
-                  <Avatar className="h-10 w-10 border-2 border-primary/20">
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 animate-scale-in">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Dashboard
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              {/* Create Content Button - Available to all learners */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden sm:flex hover-scale">
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Create
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate("/create-course")}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Create Course
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/create-quiz")}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Create Quiz
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* User Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full hover-scale">
+                    <Avatar className="h-10 w-10 border-2 border-primary/20">
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                        {getInitials(user.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 animate-scale-in">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{user.name}</p>
+                        <Badge variant={getRoleBadgeColor(user.role)} className="text-xs">
+                          {user.role}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem onClick={() => navigate("/my-courses")}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    My Courses
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  
+                  {user.role === 'admin' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate("/admin")}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Admin Panel
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
-            <Button asChild variant="gradient" size="sm" className="hover-scale">
-              <Link to="/login">
-                <User className="h-4 w-4 mr-2" />
-                Login
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/register">Sign Up</Link>
+              </Button>
+              <Button asChild variant="gradient" size="sm" className="hover-scale">
+                <Link to="/login">
+                  <User className="h-4 w-4 mr-2" />
+                  Login
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>

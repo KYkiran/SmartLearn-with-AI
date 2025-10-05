@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { authService, User } from '@/services/authService';
+import { authService, User } from '../services/authService';
 import { toast } from 'sonner';
 
 interface AuthContextType {
