@@ -14,6 +14,8 @@ export const API_ENDPOINTS = {
   // Course endpoints
   courses: {
     list: `${API_BASE_URL}/courses`,
+    enrolled: `${API_BASE_URL}/courses/enrolled`,
+    generate: `${API_BASE_URL}/courses/generate`,
     create: `${API_BASE_URL}/courses`,
     detail: (id: string) => `${API_BASE_URL}/courses/${id}`,
     update: (id: string) => `${API_BASE_URL}/courses/${id}`,
@@ -29,7 +31,10 @@ export const API_ENDPOINTS = {
   // User endpoints
   users: {
     progress: `${API_BASE_URL}/users/progress`,
-    updateProgress: `${API_BASE_URL}/users/progress`,
+    stats: `${API_BASE_URL}/users/progress/stats`,
+    achievements: `${API_BASE_URL}/users/progress/achievements`,
+    updateCourseProgress: (courseId: string) => `${API_BASE_URL}/users/progress/courses/${courseId}`,
+    updateLessonProgress: (courseId: string) => `${API_BASE_URL}/users/progress/courses/${courseId}/lessons`,
   },
 };
 

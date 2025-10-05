@@ -90,6 +90,9 @@ export function Navigation() {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">{user.name}</p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
+                    {user.role === 'admin' && (
+                      <span className="text-xs text-primary font-semibold">Admin</span>
+                    )}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

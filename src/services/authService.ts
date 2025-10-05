@@ -1,13 +1,22 @@
 import { API_ENDPOINTS, getAuthHeaders } from '@/config/api';
 
 export interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   role: string;
   avatar?: string;
+  bio?: string;
+  preferences?: {
+    learningStyle?: string;
+    difficultyLevel?: string;
+    subjects?: string[];
+  };
   isEmailVerified: boolean;
+  isActive: boolean;
+  lastLoginAt?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthResponse {
