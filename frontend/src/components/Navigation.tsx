@@ -1,17 +1,16 @@
-// frontend/src/components/Navigation.tsx
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./ThemeToggle";
-import { 
-  Home, 
-  LayoutDashboard, 
-  Sparkles, 
-  LogOut, 
-  User, 
-  BookOpen, 
+import {
+  Home,
+  LayoutDashboard,
+  Sparkles,
+  LogOut,
+  User,
+  BookOpen,
   PlusCircle,
   Trophy,
-  Settings
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -37,26 +36,28 @@ export function Navigation() {
     navigate("/");
   };
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string) =>
+    name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
 
-  const getRoleBadgeColor = (role: string) => {
-    return role === 'admin' ? 'destructive' : 'default';
-  };
+  const getRoleBadgeColor = (role: string) =>
+    role === "admin" ? "destructive" : "default";
 
   const isActivePath = (path: string) => location.pathname === path;
 
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 animate-slide-down">
+    <nav className="border-b bg-background/95 backdrop-blur sticky top-0 z-50 animate-slide-down">
       <div className="container flex h-16 items-center justify-between">
+        {/* Left: Brand & Main Nav */}
         <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2 font-semibold text-lg hover-scale">
+          <Link
+            to="/"
+            className="flex items-center gap-2 font-semibold text-lg hover-scale"
+          >
             <Sparkles className="h-6 w-6 text-primary animate-pulse-glow" />
             SmartLearn
           </Link>
@@ -69,12 +70,11 @@ export function Navigation() {
                 asChild
                 className="transition-all"
               >
-                <Link to="/">
+                <Link to="/home">
                   <Home className="h-4 w-4 mr-2" />
                   Home
                 </Link>
               </Button>
-              
               <Button
                 variant={isActivePath("/courses") ? "default" : "ghost"}
                 size="sm"
@@ -86,7 +86,6 @@ export function Navigation() {
                   Courses
                 </Link>
               </Button>
-
               <Button
                 variant={isActivePath("/dashboard") ? "default" : "ghost"}
                 size="sm"
@@ -98,7 +97,6 @@ export function Navigation() {
                   Dashboard
                 </Link>
               </Button>
-
               <Button
                 variant={isActivePath("/leaderboard") ? "default" : "ghost"}
                 size="sm"
@@ -114,12 +112,13 @@ export function Navigation() {
           )}
         </div>
 
+        {/* Right: Theme toggle & user/auth options */}
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          
+
           {user ? (
             <>
-              {/* Create Content Button - Available to all learners */}
+              {/* Create dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="hidden sm:flex hover-scale">
@@ -139,7 +138,7 @@ export function Navigation() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* User Menu */}
+              {/* User dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full hover-scale">
@@ -163,23 +162,23 @@ export function Navigation() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  
+
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard
                   </DropdownMenuItem>
-                  
+
                   <DropdownMenuItem onClick={() => navigate("/my-courses")}>
                     <BookOpen className="mr-2 h-4 w-4" />
                     My Courses
                   </DropdownMenuItem>
-                  
+
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
-                  
-                  {user.role === 'admin' && (
+
+                  {user.role === "admin" && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => navigate("/admin")}>
@@ -188,9 +187,12 @@ export function Navigation() {
                       </DropdownMenuItem>
                     </>
                   )}
-                  
+
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                  <DropdownMenuItem 
+                    onClick={handleLogout} 
+                    className="text-destructive"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </DropdownMenuItem>
