@@ -1,16 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-
-interface User {
-  email: string;
-  name: string;
-  joinedDate: string;
-}
+import { authService, User } from '@/services/authService';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, name?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -21,69 +17,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for existing user
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = async (email: string, password: string, name?: string) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    
-    const storedUsers = JSON.parse(localStorage.getItem("users") || "{}");
-    const userExists = storedUsers[email];
-
-    if (!userExists) {
-      throw new Error("User not found. Please sign up first.");
-    }
-
-    if (userExists.password !== password) {
-      throw new Error("Invalid password");
-    }
-
-    const userData: User = {
-      email,
-      name: userExists.name || name || email.split("@")[0],
-      joinedDate: userExists.joinedDate,
+    // Check if user is authenticated and fetch user data
+    const initAuth = async () => {
+      if (authService.isAuthenticated()) {
+        const result = await authService.getCurrentUser();
+        if (result.success && result.user) {
+          setUser(result.user);
+        } else {
+          // Token is invalid, clear it
+          localStorage.removeItem('token');
+        }
+      }
+      setIsLoading(false);
     };
 
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    initAuth();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const response = await authService.login(email, password);
+    
+    if (response.success && response.data) {
+      setUser(response.data.user);
+      toast.success('Logged in successfully!');
+    } else {
+      const errorMessage = response.errors?.[0]?.msg || response.message || 'Login failed';
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    }
   };
 
   const signup = async (email: string, password: string, name: string) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const storedUsers = JSON.parse(localStorage.getItem("users") || "{}");
+    const response = await authService.register(name, email, password);
     
-    if (storedUsers[email]) {
-      throw new Error("User already exists. Please login.");
+    if (response.success && response.data) {
+      setUser(response.data.user);
+      toast.success('Account created successfully!');
+    } else {
+      const errorMessage = response.errors?.[0]?.msg || response.message || 'Signup failed';
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
     }
-
-    const userData: User = {
-      email,
-      name,
-      joinedDate: new Date().toISOString(),
-    };
-
-    storedUsers[email] = {
-      password,
-      name,
-      joinedDate: userData.joinedDate,
-    };
-
-    localStorage.setItem("users", JSON.stringify(storedUsers));
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
-    localStorage.removeItem("user");
+    toast.success('Logged out successfully');
   };
 
   return (
