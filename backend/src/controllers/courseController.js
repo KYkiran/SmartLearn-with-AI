@@ -1,29 +1,27 @@
+// backend/src/controllers/courseController.js
 const Course = require('../models/Course');
 const UserProgress = require('../models/UserProgress');
-const aiService = require('../services/aiService');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
+const geminiService = require('../services/geminiService');
 
-// Get all courses with filtering and pagination
+// Get all courses
 const getCourses = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 10,
+      limit = 12,
       subject,
       level,
-      creator,
       search,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
 
-    // Build filter object
     const filter = { isPublished: true };
     
     if (subject) filter.subject = new RegExp(subject, 'i');
     if (level) filter.level = level;
-    if (creator) filter.creator = creator;
     if (search) {
       filter.$or = [
         { title: new RegExp(search, 'i') },
@@ -32,20 +30,16 @@ const getCourses = async (req, res) => {
       ];
     }
 
-    // Build sort object
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-    // Execute query with pagination
-    const skip = (page - 1) * limit;
     const courses = await Course.find(filter)
       .populate('creator', 'name avatar')
-      .select('-lessons.content') // Exclude lesson content for performance
-      .sort(sort)
-      .skip(skip)
-      .limit(parseInt(limit));
+      .sort(sortOptions)
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .lean();
 
-    // Get total count for pagination
     const total = await Course.countDocuments(filter);
 
     res.json({
@@ -71,14 +65,14 @@ const getCourses = async (req, res) => {
   }
 };
 
-// Get single course by ID - Now open to everyone
+// Get single course
 const getCourse = async (req, res) => {
   try {
     const { id } = req.params;
 
     const course = await Course.findById(id)
       .populate('creator', 'name avatar bio')
-      .populate('lessons');
+      .lean();
 
     if (!course) {
       return res.status(404).json({
@@ -87,23 +81,20 @@ const getCourse = async (req, res) => {
       });
     }
 
-    // Auto-track progress if user is authenticated
+    // If user is authenticated, check their progress
     let userProgress = null;
     if (req.user) {
-      let progress = await UserProgress.findOne({ user: req.user.id });
-      if (!progress) {
-        progress = await UserProgress.create({ user: req.user.id });
-      }
+      userProgress = await UserProgress.findOne({
+        user: req.user.id,
+        'courses.course': id
+      });
 
-      // Auto-add course to progress when accessed
-      if (!progress.getCourseProgress(id)) {
-        await progress.updateCourseProgress(id, {
-          status: 'enrolled',
-          enrolledAt: new Date()
-        });
+      if (userProgress) {
+        const courseProgress = userProgress.courses.find(
+          c => c.course.toString() === id
+        );
+        userProgress = courseProgress;
       }
-      
-      userProgress = progress.getCourseProgress(id);
     }
 
     res.json({
@@ -124,8 +115,7 @@ const getCourse = async (req, res) => {
   }
 };
 
-// Create new course - Open to all learners
-// In src/controllers/courseController.js - createCourse function
+// Create course
 const createCourse = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -140,7 +130,7 @@ const createCourse = async (req, res) => {
     const courseData = {
       ...req.body,
       creator: req.user.id,
-      lessons: req.body.lessons || [] // Handle empty lessons
+      lessons: req.body.lessons || []
     };
 
     const course = await Course.create(courseData);
@@ -163,8 +153,7 @@ const createCourse = async (req, res) => {
   }
 };
 
-
-// Generate course with AI - Open to all learners
+// Generate course with Gemini AI
 const generateCourse = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -176,65 +165,55 @@ const generateCourse = async (req, res) => {
       });
     }
 
-    const { topic, level, duration, learningObjectives, language = 'en' } = req.body;
+    const { topic, level, duration, learningObjectives, language } = req.body;
 
-    // Generate course content using AI
-    const generatedContent = await aiService.generateCourse({
+    logger.info(`Generating course with Gemini: ${topic} (${level}, ${duration}h) for user ${req.user.email}`);
+
+    // Generate course using Gemini
+    const generatedCourse = await geminiService.generateCourse(
       topic,
       level,
       duration,
       learningObjectives,
       language
-    });
+    );
 
-    // Create course with AI-generated content
-    const course = await Course.create({
-      title: generatedContent.title,
-      description: generatedContent.description,
-      subject: topic,
-      level,
-      lessons: generatedContent.lessons,
-      learningObjectives: generatedContent.learningObjectives || learningObjectives,
-      prerequisites: generatedContent.prerequisites || [],
-      tags: generatedContent.tags || [topic],
-      aiGenerated: true,
-      generationPrompt: `Topic: ${topic}, Level: ${level}, Duration: ${duration}`,
-      creator: req.user.id, // Changed from instructor to creator
-      metadata: {
-        estimatedCompletionTime: duration,
-        language
-      }
-    });
+    // Add user as creator
+    const courseData = {
+      ...generatedCourse,
+      creator: req.user.id,
+      isPublished: true // Auto-publish AI generated courses
+    };
 
-    logger.info(`AI course generated: ${course.title} for topic: ${topic}`);
+    const course = await Course.create(courseData);
+
+    logger.info(`Gemini-generated course created: ${course.title} by ${req.user.email}`);
 
     res.status(201).json({
       success: true,
-      message: 'Course generated successfully',
+      message: 'Course generated successfully with Gemini AI',
       data: { course }
     });
 
   } catch (error) {
     logger.error('Generate course error:', error);
     
-    // Handle specific AI service errors
-    if (error.message.includes('OpenAI API')) {
-      return res.status(503).json({
-        success: false,
-        message: 'AI service temporarily unavailable. Please try again later.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+    let errorMessage = 'Failed to generate course';
+    if (error.message.includes('API key')) {
+      errorMessage = 'AI service configuration error';
+    } else if (error.message.includes('quota') || error.message.includes('rate limit')) {
+      errorMessage = 'AI service temporarily unavailable. Please try again later.';
     }
 
     res.status(500).json({
       success: false,
-      message: 'Server error while generating course',
+      message: errorMessage,
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// Update course - Only creator or admin
+// Update course
 const updateCourse = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -247,11 +226,26 @@ const updateCourse = async (req, res) => {
     }
 
     const { id } = req.params;
+    const course = await Course.findById(id);
 
-    // Resource ownership already checked by middleware
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    // Check ownership or admin role
+    if (course.creator.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this course'
+      });
+    }
+
     const updatedCourse = await Course.findByIdAndUpdate(
       id,
-      req.body,
+      { ...req.body, updatedAt: new Date() },
       { new: true, runValidators: true }
     ).populate('creator', 'name avatar');
 
@@ -273,13 +267,34 @@ const updateCourse = async (req, res) => {
   }
 };
 
-// Delete course - Only creator or admin
+// Delete course
 const deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
-    const course = req.resource; // From checkResourceOwnership middleware
+    const course = await Course.findById(id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    // Check ownership or admin role
+    if (course.creator.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this course'
+      });
+    }
 
     await Course.findByIdAndDelete(id);
+
+    // Clean up user progress for this course
+    await UserProgress.updateMany(
+      { 'courses.course': id },
+      { $pull: { courses: { course: id } } }
+    );
 
     logger.info(`Course deleted: ${course.title} by ${req.user.email}`);
 
@@ -298,39 +313,20 @@ const deleteCourse = async (req, res) => {
   }
 };
 
-// Get user's accessed courses (auto-tracked)
+// Get enrolled courses for user
 const getEnrolledCourses = async (req, res) => {
   try {
     const userProgress = await UserProgress.findOne({ user: req.user.id })
       .populate({
         path: 'courses.course',
-        select: 'title description subject level thumbnail totalDuration creator isPublished',
+        select: 'title description subject level thumbnail totalDuration creator',
         populate: {
           path: 'creator',
           select: 'name avatar'
         }
       });
 
-    if (!userProgress) {
-      return res.json({
-        success: true,
-        data: { courses: [] }
-      });
-    }
-
-    // Filter out unpublished courses and format response
-    const enrolledCourses = userProgress.courses
-      .filter(courseProgress => courseProgress.course && courseProgress.course.isPublished)
-      .map(courseProgress => ({
-        course: courseProgress.course,
-        progress: {
-          status: courseProgress.status,
-          progressPercentage: courseProgress.progressPercentage,
-          enrolledAt: courseProgress.enrolledAt,
-          lastAccessedAt: courseProgress.lastAccessedAt,
-          totalTimeSpent: courseProgress.totalTimeSpent
-        }
-      }));
+    const enrolledCourses = userProgress ? userProgress.courses : [];
 
     res.json({
       success: true,
@@ -347,7 +343,7 @@ const getEnrolledCourses = async (req, res) => {
   }
 };
 
-// Add lesson to course - Only creator or admin
+// Add lesson to course
 const addLesson = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -359,9 +355,33 @@ const addLesson = async (req, res) => {
       });
     }
 
-    const course = req.resource; // From checkResourceOwnership middleware
+    const { id } = req.params;
+    const course = await Course.findById(id);
 
-    await course.addLesson(req.body);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    // Check ownership or admin role
+    if (course.creator.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to add lessons to this course'
+      });
+    }
+
+    const newLesson = {
+      ...req.body,
+      order: course.lessons.length + 1
+    };
+
+    course.lessons.push(newLesson);
+    course.totalDuration = course.lessons.reduce((total, lesson) => total + lesson.duration, 0);
+
+    await course.save();
 
     logger.info(`Lesson added to course: ${course.title} by ${req.user.email}`);
 

@@ -13,7 +13,7 @@ const logger = require('./utils/logger');
 // Route imports
 const authRoutes = require('./routes/auth');
 const courseRoutes = require('./routes/courses');
-const quizRoutes = require('./routes/quizzes');
+const quizRoutes = require('./routes/quizRoutes');
 const userRoutes = require('./routes/users');
 
 const app = express();

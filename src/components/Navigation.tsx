@@ -65,16 +65,17 @@ export function Navigation() {
           {user && (
             <div className="hidden md:flex items-center gap-2">
               <Button
-                variant={isActivePath("/") ? "default" : "ghost"}
+                variant={isActivePath("/dashboard") ? "default" : "ghost"}
                 size="sm"
                 asChild
                 className="transition-all"
               >
-                <Link to="/home">
-                  <Home className="h-4 w-4 mr-2" />
-                  Home
+                <Link to="/dashboard">
+                  <LayoutDashboard className="h-4 w-4 mr-2" />
+                  Dashboard
                 </Link>
               </Button>
+              
               <Button
                 variant={isActivePath("/courses") ? "default" : "ghost"}
                 size="sm"
@@ -86,17 +87,7 @@ export function Navigation() {
                   Courses
                 </Link>
               </Button>
-              <Button
-                variant={isActivePath("/dashboard") ? "default" : "ghost"}
-                size="sm"
-                asChild
-                className="transition-all"
-              >
-                <Link to="/dashboard">
-                  <LayoutDashboard className="h-4 w-4 mr-2" />
-                  Dashboard
-                </Link>
-              </Button>
+              
               <Button
                 variant={isActivePath("/leaderboard") ? "default" : "ghost"}
                 size="sm"

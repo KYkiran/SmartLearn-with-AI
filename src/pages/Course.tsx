@@ -1,6 +1,9 @@
 // frontend/src/pages/Course.tsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -25,6 +28,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { QuizSection } from "@/components/QuizSection";
 import { CourseProgress } from "@/components/CourseProgress";
+
+// Import syntax highlighting CSS
+import 'highlight.js/styles/github.css'; // You can choose different themes
 
 export function CoursePage() {
   const { id } = useParams<{ id: string }>();
@@ -276,10 +282,91 @@ export function CoursePage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="prose prose-sm max-w-none">
-                      <div dangerouslySetInnerHTML={{ 
-                        __html: course.lessons[currentLesson].content.replace(/\n/g, '<br>')
-                      }} />
+                    {/* Updated Markdown Rendering */}
+                    <div className="prose prose-slate max-w-none dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeHighlight]}
+                        components={{
+                          // Customize heading styles
+                          h1: ({ children }) => (
+                            <h1 className="text-2xl font-bold mb-4 text-foreground">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-xl font-semibold mb-3 text-foreground">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-lg font-medium mb-2 text-foreground">{children}</h3>
+                          ),
+                          // Customize paragraph styles
+                          p: ({ children }) => (
+                            <p className="mb-4 text-foreground leading-relaxed">{children}</p>
+                          ),
+                          // Customize list styles
+                          ul: ({ children }) => (
+                            <ul className="list-disc list-inside mb-4 space-y-1 text-foreground">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal list-inside mb-4 space-y-1 text-foreground">{children}</ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-foreground">{children}</li>
+                          ),
+                          // Customize code styles
+                          code: ({ children, className }) => {
+                            const isInline = !className;
+                            return isInline ? (
+                              <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">
+                                {children}
+                              </code>
+                            ) : (
+                              <code className={className}>{children}</code>
+                            );
+                          },
+                          pre: ({ children }) => (
+                            <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4 border">
+                              {children}
+                            </pre>
+                          ),
+                          // Customize blockquote styles
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground mb-4">
+                              {children}
+                            </blockquote>
+                          ),
+                          // Customize table styles
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto mb-4">
+                              <table className="w-full border-collapse border border-border">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="border border-border bg-muted p-2 text-left font-medium">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="border border-border p-2">
+                              {children}
+                            </td>
+                          ),
+                          // Customize link styles
+                          a: ({ href, children }) => (
+                            <a 
+                              href={href} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              {children}
+                            </a>
+                          ),
+                        }}
+                      >
+                        {course.lessons[currentLesson].content}
+                      </ReactMarkdown>
                     </div>
                     
                     {user && (
@@ -300,9 +387,14 @@ export function CoursePage() {
           </div>
         </TabsContent>
 
+        
         <TabsContent value="quizzes">
-          <QuizSection courseId={course._id} />
+          <QuizSection 
+            courseId={course._id} 
+            currentLesson={course.lessons[currentLesson]} 
+          />
         </TabsContent>
+
 
         <TabsContent value="objectives" className="space-y-4">
           <Card>

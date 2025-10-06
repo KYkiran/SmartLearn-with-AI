@@ -2,14 +2,13 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Navigation } from "./components/Navigation";
-import { LandingPage } from "./pages/Landing";  // New landing page
+import LandingPage from "./pages/Landing";  // New landing page
 import { DashboardPage } from "./pages/Dashboard";
 import { CoursePage } from "./pages/Course";
 import { CreateCoursePage } from "./pages/CreateCourse";
 import { CoursesPage } from "./pages/Courses";
 import { ProfilePage } from "./pages/Profile";
 import { AdminPanel } from "./pages/Admin";
-import Home from "./pages/Home";
 import Login from "./pages/Login";
 import { Toaster } from "sonner";
 
@@ -22,7 +21,6 @@ function App() {
           <main>
             <Routes>
               <Route path="/" element={<LandingPage />} />  {/* Landing page for logged out users */}
-              <Route path="/home" element={<Home />} />
               <Route path="/dashboard" element={<DashboardPage />} />  {/* Dashboard for logged in users */}
               <Route path="/login" element={<Login />} />
               <Route path="/courses" element={<CoursesPage />} />

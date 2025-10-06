@@ -1,63 +1,15 @@
+// backend/src/models/Quiz.js
 const mongoose = require('mongoose');
-
-const optionSchema = new mongoose.Schema({
-  text: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  isCorrect: {
-    type: Boolean,
-    default: false
-  }
-});
-
-const questionSchema = new mongoose.Schema({
-  question: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  type: {
-    type: String,
-    enum: ['multiple-choice', 'true-false', 'fill-blank', 'essay'],
-    default: 'multiple-choice'
-  },
-  options: [optionSchema],
-  correctAnswer: {
-    type: String, // For fill-blank and essay questions
-    trim: true
-  },
-  explanation: {
-    type: String,
-    trim: true
-  },
-  difficulty: {
-    type: String,
-    enum: ['easy', 'medium', 'hard'],
-    default: 'medium'
-  },
-  points: {
-    type: Number,
-    default: 1,
-    min: 1
-  },
-  tags: [{
-    type: String,
-    trim: true
-  }]
-});
 
 const quizSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: [true, 'Quiz title is required'],
-    trim: true,
-    maxlength: [100, 'Title cannot exceed 100 characters']
+    required: true,
+    maxlength: 200
   },
   description: {
     type: String,
-    maxlength: [500, 'Description cannot exceed 500 characters']
+    maxlength: 1000
   },
   course: {
     type: mongoose.Schema.Types.ObjectId,
@@ -66,22 +18,50 @@ const quizSchema = new mongoose.Schema({
   },
   lesson: {
     type: mongoose.Schema.Types.ObjectId,
-    required: false // Optional: quiz can be for entire course or specific lesson
+    ref: 'Course.lessons', // Reference to specific lesson
+    default: null // null means it's a course-wide quiz
   },
-  questions: [questionSchema],
-  timeLimit: {
-    type: Number, // in minutes
-    default: null // null means no time limit
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  attempts: {
-    allowed: {
-      type: Number,
-      default: 3
+  questions: [{
+    question: {
+      type: String,
+      required: true
     },
-    current: {
+    type: {
+      type: String,
+      enum: ['multiple-choice', 'true-false', 'fill-blank', 'essay'],
+      default: 'multiple-choice'
+    },
+    options: [{
+      text: {
+        type: String,
+        required: true
+      },
+      isCorrect: {
+        type: Boolean,
+        default: false
+      }
+    }],
+    correctAnswer: String, // For non-multiple choice questions
+    explanation: String,
+    difficulty: {
+      type: String,
+      enum: ['easy', 'medium', 'hard'],
+      default: 'medium'
+    },
+    points: {
       type: Number,
-      default: 0
+      default: 1,
+      min: 1
     }
+  }],
+  totalPoints: {
+    type: Number,
+    required: true
   },
   passingScore: {
     type: Number,
@@ -89,25 +69,29 @@ const quizSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
-  totalPoints: {
-    type: Number,
-    default: 0
+  timeLimit: {
+    type: Number, // in minutes
+    default: null // null = no time limit
   },
-  isPublished: {
-    type: Boolean,
-    default: false
-  },
-  publishedAt: {
-    type: Date
+  attempts: {
+    allowed: {
+      type: Number,
+      default: 3,
+      min: 1
+    },
+    current: {
+      type: Number,
+      default: 0
+    }
   },
   settings: {
     shuffleQuestions: {
       type: Boolean,
-      default: false
+      default: true
     },
     shuffleOptions: {
       type: Boolean,
-      default: false
+      default: true
     },
     showCorrectAnswers: {
       type: Boolean,
@@ -122,118 +106,26 @@ const quizSchema = new mongoose.Schema({
       default: true
     }
   },
+  isPublished: {
+    type: Boolean,
+    default: false
+  },
   aiGenerated: {
     type: Boolean,
-    default: true
+    default: false
   },
-  generationPrompt: {
-    type: String
-  },
-  creator: { // Changed from 'instructor' to 'creator'
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  quizType: {
+    type: String,
+    enum: ['lesson', 'course', 'practice'],
+    default: 'course'
   }
 }, {
   timestamps: true
 });
 
 // Indexes
-quizSchema.index({ course: 1 });
-quizSchema.index({ creator: 1 }); // Updated index
-quizSchema.index({ isPublished: 1, createdAt: -1 });
-
-// Calculate total points before saving
-quizSchema.pre('save', function(next) {
-  if (this.questions && this.questions.length > 0) {
-    this.totalPoints = this.questions.reduce((total, question) => total + question.points, 0);
-  }
-  
-  if (this.isPublished && !this.publishedAt) {
-    this.publishedAt = new Date();
-  }
-  
-  next();
-});
-
-// Method to shuffle questions
-quizSchema.methods.getShuffledQuestions = function() {
-  if (!this.settings.shuffleQuestions) return this.questions;
-  
-  const shuffled = [...this.questions];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  
-  // Also shuffle options if enabled
-  if (this.settings.shuffleOptions) {
-    shuffled.forEach(question => {
-      if (question.options && question.options.length > 0) {
-        for (let i = question.options.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [question.options[i], question.options[j]] = [question.options[j], question.options[i]];
-        }
-      }
-    });
-  }
-  
-  return shuffled;
-};
-
-// Method to calculate score
-quizSchema.methods.calculateScore = function(answers) {
-  let score = 0;
-  let totalPossible = 0;
-  
-  this.questions.forEach((question, index) => {
-    totalPossible += question.points;
-    
-    const userAnswer = answers[index];
-    if (!userAnswer) return;
-    
-    switch (question.type) {
-      case 'multiple-choice':
-        const correctOption = question.options.find(opt => opt.isCorrect);
-        if (correctOption && userAnswer === correctOption.text) {
-          score += question.points;
-        }
-        break;
-        
-      case 'true-false':
-        const correctTF = question.options.find(opt => opt.isCorrect);
-        if (correctTF && userAnswer === correctTF.text) {
-          score += question.points;
-        }
-        break;
-        
-      case 'fill-blank':
-        if (question.correctAnswer && 
-            userAnswer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim()) {
-          score += question.points;
-        }
-        break;
-        
-      // Essay questions need manual grading
-      case 'essay':
-        // Skip auto-grading for essays
-        break;
-    }
-  });
-  
-  return {
-    score,
-    totalPossible,
-    percentage: totalPossible > 0 ? Math.round((score / totalPossible) * 100) : 0
-  };
-};
-
-// Static method to find quizzes by difficulty
-quizSchema.statics.findByDifficulty = function(difficulty) {
-  return this.find({
-    'questions.difficulty': difficulty,
-    isPublished: true
-  });
-};
+quizSchema.index({ course: 1, lesson: 1 });
+quizSchema.index({ course: 1, quizType: 1 });
+quizSchema.index({ creator: 1 });
 
 module.exports = mongoose.model('Quiz', quizSchema);

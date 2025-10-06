@@ -1,15 +1,24 @@
 // frontend/src/pages/Landing.tsx
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { 
-  Sparkles, 
-  BookOpen, 
-  Brain, 
-  Users, 
-  Trophy, 
+import { useAuth } from "@/contexts/AuthContext";
+import { courseService } from "@/services/courseService";
+import { popularTopics } from "@/utils/mockData";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+import {
+  Sparkles,
+  Search,
+  TrendingUp,
+  Award,
+  BookOpen,
+  Brain,
+  Users,
+  Trophy,
   Zap,
   ArrowRight,
   Star,
@@ -17,176 +26,139 @@ import {
   Play,
   Target,
   Globe,
-  TrendingUp
 } from "lucide-react";
-import { courseService } from "../services/courseService";
-import { useAuth } from "../contexts/AuthContext";
 
-export function LandingPage() {
+import heroImage from "@/assets/hero-learning.jpg";
+
+export default function LandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const [searchTopic, setSearchTopic] = useState("");
   const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
-  const [stats, setStats] = useState({
-    totalCourses: 0,
-    totalUsers: 0,
-    totalQuizzes: 0
-  });
+  const [stats] = useState({ totalCourses: 0, totalUsers: 0, totalQuizzes: 0 });
 
   useEffect(() => {
-    // Fetch featured courses for preview
+    if (user) {
+      navigate("/dashboard");
+      return;
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     const fetchFeaturedCourses = async () => {
       try {
-        const response = await courseService.getCourses({ limit: 3, sortBy: 'enrollmentCount', sortOrder: 'desc' });
+        const response = await courseService.getCourses({ limit: 3, sortBy: "enrollmentCount", sortOrder: "desc" });
         if (response.success && response.data?.courses) {
           setFeaturedCourses(response.data.courses.slice(0, 3));
         }
-      } catch (error) {
-        console.error('Error fetching featured courses:', error);
+      } catch (e) {
+        console.error("Error fetching featured courses:", e);
       }
     };
-
     fetchFeaturedCourses();
   }, []);
 
-  // If user is logged in, redirect to dashboard
-  if (user) {
-    navigate('/dashboard');
-    return null;
-  }
+  const handleCreateCourse = (topic: string) => {
+    const t = topic.trim();
+    if (!t) return;
+    // Navigate to your generator route. You previously used /course/:topic.
+    // If your app expects a different route, adjust here.
+    navigate(`/course/${encodeURIComponent(t)}`);
+  };
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-        <div className="container mx-auto px-4 py-20 lg:py-32">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <Badge variant="gradient" className="w-fit">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  AI-Powered Learning Platform
-                </Badge>
-                <h1 className="text-4xl lg:text-6xl font-bold leading-tight">
-                  Learn Anything,
-                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Create Everything</span>
-                </h1>
-                <p className="text-xl text-muted-foreground leading-relaxed">
-                  Join thousands of learners in our open platform where anyone can learn from world-class courses 
-                  and create their own content with AI assistance.
-                </p>
-              </div>
+    <div className="min-h-screen bg-background animate-fade-in">
+      {/* Hero Section (merged) */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-background to-background">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-10 animate-fade-in"
+          style={{ backgroundImage: `url(${heroImage})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/30 to-background" />
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button 
-                  size="lg" 
-                  className="text-lg px-8 py-6 hover-scale"
-                  onClick={() => navigate('/register')}
-                >
-                  Start Learning Free
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="text-lg px-8 py-6"
-                  onClick={() => navigate('/courses')}
-                >
-                  <Play className="mr-2 h-5 w-5" />
-                  Explore Courses
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-8 pt-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{stats.totalCourses}+</div>
-                  <div className="text-sm text-muted-foreground">Courses</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{stats.totalUsers}+</div>
-                  <div className="text-sm text-muted-foreground">Learners</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">100%</div>
-                  <div className="text-sm text-muted-foreground">Free Access</div>
-                </div>
-              </div>
+        <div className="container relative z-10 py-20 md:py-32">
+          <div className="mx-auto max-w-3xl text-center space-y-8">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary animate-slide-down border border-primary/20">
+              <Sparkles className="h-4 w-4 animate-pulse" />
+              AI-Powered Learning Platform
             </div>
 
-            <div className="relative">
-              <div className="relative z-10 grid grid-cols-2 gap-4">
-                <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
-                  <CardHeader className="pb-3">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mb-2">
-                      <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <CardTitle className="text-lg">Learn</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Access courses instantly without enrollment barriers
-                    </p>
-                  </CardContent>
-                </Card>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl gradient-text animate-fade-in">
+              Learn Anything with AI
+            </h1>
 
-                <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-2 mt-8">
-                  <CardHeader className="pb-3">
-                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mb-2">
-                      <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <CardTitle className="text-lg">Create</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Build courses with AI assistance and share knowledge
-                    </p>
-                  </CardContent>
-                </Card>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.1s" }}>
+              Generate personalized courses on any topic. Track your progress, take quizzes, and master new skills at your own pace.
+            </p>
 
-                <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
-                  <CardHeader className="pb-3">
-                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mb-2">
-                      <Trophy className="h-6 w-6 text-green-600 dark:text-green-400" />
-                    </div>
-                    <CardTitle className="text-lg">Achieve</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Track progress and earn achievements as you learn
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-2 mt-8">
-                  <CardHeader className="pb-3">
-                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center mb-2">
-                      <Users className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <CardTitle className="text-lg">Connect</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Join a community of passionate learners and creators
-                    </p>
-                  </CardContent>
-                </Card>
+            {/* Search Bar */}
+            <div className="flex gap-2 max-w-xl mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="What do you want to learn today?"
+                  value={searchTopic}
+                  onChange={(e) => setSearchTopic(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateCourse(searchTopic)}
+                  className="pl-10 h-12 text-base hover-lift focus:shadow-lg transition-all"
+                />
               </div>
-              
-              {/* Floating elements */}
-              <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full opacity-20 animate-pulse"></div>
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full opacity-10 animate-pulse delay-1000"></div>
+              <Button
+                size="lg"
+                variant="gradient"
+                onClick={() => handleCreateCourse(searchTopic)}
+                disabled={!searchTopic.trim()}
+                className="hover-lift"
+              >
+                Generate Course
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Three Feature Cards (from Home) */}
+      <section className="container py-16">
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="card-interactive border-2 hover:border-primary/50 hover-glow animate-fade-in">
+            <CardHeader>
+              <Sparkles className="h-10 w-10 text-primary mb-2 animate-pulse" />
+              <CardTitle>AI-Generated Content</CardTitle>
+              <CardDescription>
+                Courses tailored to your learning style with comprehensive modules and quizzes
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="card-interactive border-2 hover:border-primary/50 hover-glow animate-fade-in" style={{ animationDelay: "0.1s" }}>
+            <CardHeader>
+              <TrendingUp className="h-10 w-10 text-primary mb-2" />
+              <CardTitle>Track Your Progress</CardTitle>
+              <CardDescription>
+                Detailed analytics showing daily activity, streaks, and completion rates
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="card-interactive border-2 hover:border-primary/50 hover-glow animate-fade-in" style={{ animationDelay: "0.2s" }}>
+            <CardHeader>
+              <Award className="h-10 w-10 text-primary mb-2" />
+              <CardTitle>Interactive Quizzes</CardTitle>
+              <CardDescription>
+                Test your knowledge with AI-generated quizzes for each module
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </section>
+
+      {/* Why Choose (from Landing) */}
       <section className="py-20 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Why Choose SmartLearn?
-            </h2>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Why Choose SmartLearn?</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Experience the future of education with our innovative platform designed for modern learners and creators.
             </p>
@@ -280,23 +252,49 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Featured Courses Section */}
+      {/* Popular Topics (from Home) */}
+      <section className="container py-16">
+        <div className="text-center mb-12 animate-fade-in">
+          <h2 className="text-3xl font-bold mb-4 gradient-text">Popular Topics</h2>
+          <p className="text-muted-foreground">Start learning with these trending courses</p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {popularTopics.map((topic, index) => (
+            <Card
+              key={topic.title}
+              className="card-interactive border-2 hover:border-primary/50 hover-glow animate-fade-in"
+              style={{ animationDelay: `${index * 0.1}s` }}
+              onClick={() => handleCreateCourse(topic.title)}
+            >
+              <CardHeader>
+                <div className="text-4xl mb-2 transition-transform duration-300 hover:scale-125">{topic.icon}</div>
+                <CardTitle>{topic.title}</CardTitle>
+                <CardDescription>{topic.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full group">
+                  <span className="group-hover:scale-110 transition-transform">Start Learning</span>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Featured Courses (from Landing) */}
       {featuredCourses.length > 0 && (
         <section className="py-20 bg-gray-50 dark:bg-gray-800">
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
-              <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-                Popular Courses
-              </h2>
-              <p className="text-xl text-muted-foreground">
-                Start with these highly-rated courses from our community
-              </p>
+              <h2 className="text-3xl lg:text-4xl font-bold mb-4">Popular Courses</h2>
+              <p className="text-xl text-muted-foreground">Start with these highly-rated courses from our community</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredCourses.map((course, index) => (
-                <Card 
-                  key={course._id} 
+              {featuredCourses.map((course) => (
+                <Card
+                  key={course._id}
                   className="hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer group"
                   onClick={() => navigate(`/courses/${course._id}`)}
                 >
@@ -313,12 +311,8 @@ export function LandingPage() {
                             </Badge>
                           )}
                         </div>
-                        <CardTitle className="group-hover:text-primary transition-colors">
-                          {course.title}
-                        </CardTitle>
-                        <CardDescription className="line-clamp-2">
-                          {course.description}
-                        </CardDescription>
+                        <CardTitle className="group-hover:text-primary transition-colors">{course.title}</CardTitle>
+                        <CardDescription className="line-clamp-2">{course.description}</CardDescription>
                       </div>
                     </div>
                   </CardHeader>
@@ -336,11 +330,7 @@ export function LandingPage() {
             </div>
 
             <div className="text-center mt-12">
-              <Button 
-                variant="outline" 
-                size="lg"
-                onClick={() => navigate('/courses')}
-              >
+              <Button variant="outline" size="lg" onClick={() => navigate('/courses')}>
                 View All Courses
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -349,16 +339,12 @@ export function LandingPage() {
         </section>
       )}
 
-      {/* How It Works Section */}
+      {/* How It Works (from Landing) */}
       <section className="py-20 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              How It Works
-            </h2>
-            <p className="text-xl text-muted-foreground">
-              Get started in three simple steps
-            </p>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">How It Works</h2>
+            <p className="text-xl text-muted-foreground">Get started in three simple steps</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -367,9 +353,7 @@ export function LandingPage() {
                 <span className="text-2xl font-bold text-white">1</span>
               </div>
               <h3 className="text-xl font-semibold mb-3">Sign Up Free</h3>
-              <p className="text-muted-foreground">
-                Create your account in seconds and join our learning community at no cost.
-              </p>
+              <p className="text-muted-foreground">Create your account in seconds and join our learning community at no cost.</p>
             </div>
 
             <div className="text-center group">
@@ -377,9 +361,7 @@ export function LandingPage() {
                 <span className="text-2xl font-bold text-white">2</span>
               </div>
               <h3 className="text-xl font-semibold mb-3">Explore & Learn</h3>
-              <p className="text-muted-foreground">
-                Browse courses, start learning immediately, and track your progress automatically.
-              </p>
+              <p className="text-muted-foreground">Browse courses, start learning immediately, and track your progress automatically.</p>
             </div>
 
             <div className="text-center group">
@@ -387,28 +369,23 @@ export function LandingPage() {
                 <span className="text-2xl font-bold text-white">3</span>
               </div>
               <h3 className="text-xl font-semibold mb-3">Create & Share</h3>
-              <p className="text-muted-foreground">
-                Build your own courses with AI assistance and share knowledge with others.
-              </p>
+              <p className="text-muted-foreground">Build your own courses with AI assistance and share knowledge with others.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* CTA Section (from Landing) */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="container mx-auto px-4 text-center">
           <div className="max-w-3xl mx-auto text-white">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-6">
-              Ready to Start Your Learning Journey?
-            </h2>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-6">Ready to Start Your Learning Journey?</h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of learners who are already transforming their skills with SmartLearn. 
-              It's free, it's powerful, and it's waiting for you.
+              Join thousands of learners who are already transforming their skills with SmartLearn. It's free, it's powerful, and it's waiting for you.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="secondary"
                 className="text-lg px-8 py-6"
                 onClick={() => navigate('/register')}
@@ -416,8 +393,8 @@ export function LandingPage() {
                 Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="outline"
                 className="text-lg px-8 py-6 border-white text-white hover:bg-white hover:text-purple-600"
                 onClick={() => navigate('/courses')}
